@@ -15,7 +15,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Headless Wifi',
       theme: ThemeData(
         // This is the theme of your application.
         //
@@ -59,6 +59,9 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   Map<String, dynamic> credentials = {};
+  bool isConnected = false;
+  bool hasInternet = false;
+
   @override
   void initState() {
     super.initState();
@@ -68,6 +71,18 @@ class _MyHomePageState extends State<MyHomePage> {
 
       if (statuses[Permission.location]!.isGranted &&
           statuses[Permission.nearbyWifiDevices]!.isGranted) {
+        Headlesswifi().listenForWifiEvent((isConnected, hasInternet) {
+          log('wifi event: $isConnected, $hasInternet');
+          setState(() {
+            this.isConnected = isConnected;
+            this.hasInternet = hasInternet;
+          });
+          if (isConnected) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('✅ Wifi Connected')));
+          }
+        });
         final res = await Headlesswifi().startWifi();
         log('res: $res');
         if (res != null && res['ssid'] != null && res['password'] != null) {
@@ -136,6 +151,11 @@ class _MyHomePageState extends State<MyHomePage> {
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 SizedBox(height: 10),
+                if (isConnected)
+                  Text(
+                    '✅ Wifi Connected',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
               ],
             );
           },

@@ -1,6 +1,10 @@
+import 'dart:ui';
+
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'headlesswifi_method_channel.dart';
+
+typedef WifiEventListener = void Function(bool isConnected, bool hasInternet);
 
 abstract class HeadlesswifiPlatform extends PlatformInterface {
   /// Constructs a HeadlesswifiPlatform.
@@ -30,4 +34,6 @@ abstract class HeadlesswifiPlatform extends PlatformInterface {
   Future<Map<String, dynamic>?> startWifi();
 
   Future<bool> stopWifi();
+
+  void listenForWifiEvent(WifiEventListener onEvent);
 }

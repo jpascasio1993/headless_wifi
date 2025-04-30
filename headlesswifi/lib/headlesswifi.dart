@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'headlesswifi_platform_interface.dart';
 
 class Headlesswifi {
@@ -13,5 +15,9 @@ class Headlesswifi {
 
   Future<bool> stopWifi() {
     return HeadlesswifiPlatform.instance.stopWifi();
+  }
+
+  void listenForWifiEvent(WifiEventListener onEvent) {
+    HeadlesswifiPlatform.instance.listenForWifiEvent(onEvent);
   }
 }

@@ -8,17 +8,19 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.os.PowerManager
 import android.os.IBinder
+import android.os.PowerManager
 import androidx.annotation.RequiresPermission
 import com.awd.plugin.hotspot.HotspotManager
 import com.awd.plugin.hotspot.WebPortal
 import com.awd.plugin.hotspot.WifiConnector
-import java.lang.ref.WeakReference
-import androidx.core.content.edit
-import androidx.core.os.bundleOf
-import com.awd.plugin.headlesswifi.HeadlessWifiPluginService.Companion.hotspotCallback
 import fi.iki.elonen.NanoHTTPD
+import io.flutter.plugin.common.MethodChannel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import java.lang.ref.WeakReference
 
 class HeadlessWifiPluginService : Service(){
     private var ssid: String? = null
@@ -41,6 +43,7 @@ class HeadlessWifiPluginService : Service(){
         private lateinit var hotspotManager: HotspotManager
         private lateinit var wifiConnector: WifiConnector
         private lateinit var hotspotCallback: HotspotManager.HotspotCallback
+        private lateinit var backgroundChannel: MethodChannel
 
         fun startService(context: Context) {
 
@@ -96,6 +99,10 @@ class HeadlessWifiPluginService : Service(){
             })
         }
 
+        fun setBackgroundChannel(channel: MethodChannel) {
+            backgroundChannel = channel
+        }
+
         val hostname: String? get() = webPortal.hostname
 
         val ip: String? get() = hotspotManager.getHotspotLocalIp()
@@ -130,9 +137,31 @@ class HeadlessWifiPluginService : Service(){
         webPortal = WebPortal(
             object : WebPortal.WebPortListener {
                 override fun onCredentialsSubmit(ssid: String, password: String, isHiddenNetwork: Boolean, callback: WebPortal.PostCallback) {
-//                    webPortal.stop()
                     println("submitted credentials: $ssid, $password, $isHiddenNetwork")
-                    wifiConnector.connectToWifi(ssid, password, isHiddenNetwork, callback)
+                    wifiConnector.connectToWifi(ssid, password, isHiddenNetwork, object: WebPortal.PostCallback {
+                        override fun onComplete(
+                            connected: Boolean,
+                            hasInternet: Boolean
+                        ) {
+                            callback.onComplete(connected, hasInternet)
+                            CoroutineScope(Dispatchers.Main + SupervisorJob()).launch {
+                                    backgroundChannel.invokeMethod("headless_wifi.connectToWifi", arrayOf(connected, hasInternet), object : MethodChannel.Result {
+                                        override fun success(result: Any?) {
+                                            println("invokeMethod success: $result")
+                                        }
+
+                                        override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) {
+                                            println("invokeMethod error: $errorMessage")
+                                        }
+
+                                        override fun notImplemented() {
+                                            println("invokeMethod notImplemented")
+                                        }
+                                    })
+                                }
+                        }
+
+                    })
                 }
             }
         )
