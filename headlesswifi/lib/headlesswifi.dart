@@ -7,11 +7,8 @@ class Headlesswifi {
     return HeadlesswifiPlatform.instance.getPlatformVersion();
   }
 
-  Future<bool> startWifi({required String ssid, required String password}) {
-    return HeadlesswifiPlatform.instance.startWifi(
-      ssid: ssid,
-      password: password,
-    );
+  Future<Map<String, dynamic>?> startWifi() {
+    return HeadlesswifiPlatform.instance.startWifi();
   }
 
   Future<bool> stopWifi() {

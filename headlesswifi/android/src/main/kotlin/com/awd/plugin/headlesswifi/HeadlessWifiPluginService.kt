@@ -1,5 +1,6 @@
 package com.awd.plugin.headlesswifi
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.PendingIntent
@@ -9,14 +10,17 @@ import android.content.Intent
 import android.os.Build
 import android.os.PowerManager
 import android.os.IBinder
+import androidx.annotation.RequiresPermission
 import com.awd.plugin.hotspot.HotspotManager
 import com.awd.plugin.hotspot.WebPortal
 import com.awd.plugin.hotspot.WifiConnector
 import java.lang.ref.WeakReference
 import androidx.core.content.edit
 import androidx.core.os.bundleOf
+import com.awd.plugin.headlesswifi.HeadlessWifiPluginService.Companion.hotspotCallback
+import fi.iki.elonen.NanoHTTPD
 
-class HeadlessWifiPluginService : Service() {
+class HeadlessWifiPluginService : Service(){
     private var ssid: String? = null
     private var password: String? = null
 
@@ -36,18 +40,11 @@ class HeadlessWifiPluginService : Service() {
         private lateinit var webPortal: WebPortal
         private lateinit var hotspotManager: HotspotManager
         private lateinit var wifiConnector: WifiConnector
+        private lateinit var hotspotCallback: HotspotManager.HotspotCallback
 
-        fun startService(context: Context, ssid: String?, password: String?) {
-            val pref = context.getSharedPreferences(SHAREDPREFERENCE_KEY, MODE_PRIVATE)
-            println("$TAG: startService($ssid, $password)")
-            pref.edit {
-                putString(SSID_KEY, ssid)
-                    .putString(PASSWORD_KEY, password)
-            }
+        fun startService(context: Context) {
 
             val restartService = Intent(context, HeadlessWifiPluginService::class.java)
-            val bundle = bundleOf(Pair(SSID_KEY, ssid), Pair(PASSWORD_KEY, password))
-            restartService.putExtras(bundle)
 
             val pendintIntentFlag =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
@@ -79,19 +76,33 @@ class HeadlessWifiPluginService : Service() {
             context.stopService(serviceIntent)
         }
 
-        private fun startHotspot(ssid: String?, password: String?) {
-            if (ssid == null || password == null) {
-                println("$TAG: SSID or Password is null")
-                return
-            }
-            val success = hotspotManager.startHotspot(ssid, password)
-            if (!success) return
-            webPortal.start()
+        fun setHotspotCallback(callback: HotspotManager.HotspotCallback) {
+            hotspotCallback = callback
         }
 
+        @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES])
+        private fun startHotspot() {
+            hotspotManager.startHotspot(object: HotspotManager.HotspotCallback {
+                override fun onStarted(ssid: String, password: String) {
+                    println("$TAG: Hotspot started with SSID: $ssid and Password: $password")
+                   try {
+                       webPortal.start(NanoHTTPD.SOCKET_READ_TIMEOUT, true)
+                   } catch (e: Exception) {
+                       println("webPortal failed to start")
+                       e.printStackTrace()
+                   }
+                    hotspotCallback.onStarted(ssid, password)
+                }
+            })
+        }
+
+        val hostname: String? get() = webPortal.hostname
+
+        val ip: String? get() = hotspotManager.getHotspotLocalIp()
     }
 
 
+    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES])
     @SuppressLint("ForegroundServiceType")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         println("$TAG: onStartCommand()")
@@ -99,9 +110,7 @@ class HeadlessWifiPluginService : Service() {
             SERVICE_ID,
             ServiceNotification.createNotification(WeakReference<Context>(this))
         )
-        ssid = intent?.getStringExtra("ssid")
-        password = intent?.getStringExtra("password")
-//        startHotspot(ssid, password)
+        startHotspot()
         return START_STICKY
     }
 
@@ -110,7 +119,7 @@ class HeadlessWifiPluginService : Service() {
         stopForegroundService()
         releaseWakeLock()
         super.onTaskRemoved(rootIntent)
-        startService(applicationContext, ssid, password)
+        startService(applicationContext)
     }
 
     override fun onCreate() {
@@ -120,13 +129,13 @@ class HeadlessWifiPluginService : Service() {
 
         webPortal = WebPortal(
             object : WebPortal.WebPortListener {
-                override fun onCredentialsSubmit(ssid: String, password: String) {
-                    webPortal.stop()
-                    wifiConnector.connectToWifi(ssid, password)
+                override fun onCredentialsSubmit(ssid: String, password: String, isHiddenNetwork: Boolean, callback: WebPortal.PostCallback) {
+//                    webPortal.stop()
+                    println("submitted credentials: $ssid, $password, $isHiddenNetwork")
+                    wifiConnector.connectToWifi(ssid, password, isHiddenNetwork, callback)
                 }
             }
         )
-
         println("$TAG: onCreate()")
         acquireWakeLock()
     }
@@ -141,7 +150,7 @@ class HeadlessWifiPluginService : Service() {
             e.printStackTrace()
         }
         super.onDestroy()
-        startService(applicationContext, ssid, password)
+        startService(applicationContext)
     }
 
     private fun stopForegroundService() {

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart';
 
 import 'headlesswifi_platform_interface.dart';
 
@@ -18,14 +19,10 @@ class MethodChannelHeadlesswifi extends HeadlesswifiPlatform {
   }
 
   @override
-  Future<bool> startWifi({
-    required String ssid,
-    required String password,
-  }) async {
-    final res = await methodChannel.invokeMethod('startHeadlessWifi', {
-      'ssid': ssid,
-      'password': password,
-    });
+  Future<Map<String, dynamic>?> startWifi() async {
+    final res = await methodChannel.invokeMethod<Map<String, dynamic>>(
+      'startHeadlessWifi',
+    );
     return res;
   }
 

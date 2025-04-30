@@ -1,25 +1,15 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:headlesswifi/headlesswifi.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends StatelessWidget {
   const MyApp({super.key});
-
-  @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
-      await Headlesswifi().startWifi(ssid: 'test', password: 'test');
-    });
-  }
 
   // This widget is the root of your application.
   @override
@@ -44,7 +34,7 @@ class _MyAppState extends State<MyApp> {
         // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'Headless Wifi'),
     );
   }
 }
@@ -68,16 +58,24 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+  Map<String, dynamic> credentials = {};
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
+      Map<Permission, PermissionStatus> statuses =
+          await [Permission.location, Permission.nearbyWifiDevices].request();
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      if (statuses[Permission.location]!.isGranted &&
+          statuses[Permission.nearbyWifiDevices]!.isGranted) {
+        final res = await Headlesswifi().startWifi();
+        log('res: $res');
+        if (res != null && res['ssid'] != null && res['password'] != null) {
+          setState(() {
+            credentials = res;
+          });
+        }
+      }
     });
   }
 
@@ -91,6 +89,7 @@ class _MyHomePageState extends State<MyHomePage> {
     // than having to individually change instances of widgets.
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
         // TRY THIS: Try changing the color here to a specific color (to
         // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
         // change color while the other colors stay the same.
@@ -102,35 +101,46 @@ class _MyHomePageState extends State<MyHomePage> {
       body: Center(
         // Center is a layout widget. It takes a single child and positions it
         // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+        child: Builder(
+          builder: (context) {
+            if (credentials.isEmpty) {
+              return Text(
+                'Please wait',
+                style: Theme.of(context).textTheme.headlineMedium,
+              );
+            }
+            return Column(
+              children: [
+                Text(
+                  'To connect to the wifi, Open your wifi settings and connect to the following network:',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                SizedBox(height: 10),
+                Text(
+                  'SSID: ${credentials['ssid']}',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                SizedBox(height: 10),
+                Text(
+                  'Password: ${credentials['password']}',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                SizedBox(height: 10),
+                Text(
+                  'once connected, open browser and open the following url:',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                SizedBox(height: 10),
+                Text(
+                  'http://${credentials['ip']}:8080',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                SizedBox(height: 10),
+              ],
+            );
+          },
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }

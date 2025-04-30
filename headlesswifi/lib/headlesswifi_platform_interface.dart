@@ -27,7 +27,7 @@ abstract class HeadlesswifiPlatform extends PlatformInterface {
     throw UnimplementedError('platformVersion() has not been implemented.');
   }
 
-  Future<bool> startWifi({required String ssid, required String password});
+  Future<Map<String, dynamic>?> startWifi();
 
   Future<bool> stopWifi();
 }
