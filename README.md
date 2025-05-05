@@ -4,7 +4,7 @@ This app creates a Wi-Fi hotspot and hosts a web portal where users can enter th
 
 ## Prerequisites
 
-**IDE**
+**IDE -- Either of these, your preference**
  - Android Studio Meerkat (2024.3.1) or latest
  - VSCode
  - Cursor
@@ -52,3 +52,6 @@ When the app launches, it creates a Wi-Fi hotspot with a randomly generated SSID
 After connecting to the hotspot, the tester must open the web portal in a browser and enter the SSID and password of the target Wi-Fi network. If the target network is hidden, the tester must also check the corresponding option. Upon successful authentication, the app prompts the user to grant one-time permission to connect to the network. Once granted, future connections to the same network will not require user interaction.
 
 If the app is swiped away, the service restarts automatically, reconnects to the last known Wi-Fi network, and continues running in the background. It also updates the foreground notification with the current hotspot’s SSID and password. Since the notification text may be truncated, the user should tap the notification to reopen the app and view the full instructions.
+
+**Appreciation**
+Thanks to online resources such as StackOverflow, GitHub Issues, and AI -- ChatGPT, ClaudeAI. Having my queries answered blazing fast is the greatest feeling of development.
