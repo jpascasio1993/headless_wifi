@@ -26,7 +26,7 @@ This project includes `*.jks`, `key.properties` in the repository since this is 
 
 **Running the App**
 
-Run the following command to run the app
+Before running the following command, make sure your Wifi is `on` and not connected to any network.
 
 ```sh
     # install dependencies
