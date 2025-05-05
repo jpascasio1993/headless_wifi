@@ -55,3 +55,14 @@ If the app is swiped away, the service restarts automatically, reconnects to the
 
 **Appreciation**
 Thanks to online resources such as StackOverflow, GitHub Issues, and AI -- ChatGPT, ClaudeAI. Having my queries answered blazing fast is one of the greatest feeling of development.
+ 
+
+https://github.com/user-attachments/assets/adc3e82a-53c3-4cdb-a2ac-c63546215b1c
+
+![one-time-permission-prompt](https://github.com/user-attachments/assets/9704336e-d032-4ab1-bb2c-6d35bd71b217)
+
+
+
+https://github.com/user-attachments/assets/f613a925-72a8-4c4b-9a1b-eab1d4711f20
+
+
