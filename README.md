@@ -42,7 +42,8 @@ Starting from Android 8.0 (API level 26), the ability to programmatically config
 
 The only supported way to start a hotspot is through `startLocalOnlyHotspot`, which creates a hotspot with a randomly generated SSID and password. These credentials cannot be customized. Once the hotspot is active, the app can display the connection details along with instructions for another device to submit the desired Wi-Fi credentials.
 
-Connecting the app to a new Wi-Fi network for the first time also requires user approval due to Android's current security model. On devices like the Samsung A52 running Android 13, the user is prompted to allow the connection once. After granting permission, subsequent connections to the same network do not require further user interaction.
+Connecting the app to a new Wi-Fi network for the first time also requires user approval due to Android's current security model. On devices like the Samsung A52 running Android 13, the user is prompted to allow the connection once. After granting permission, subsequent connections to the same network do not require further user interaction. 
+
 
 **How the app works**
 
