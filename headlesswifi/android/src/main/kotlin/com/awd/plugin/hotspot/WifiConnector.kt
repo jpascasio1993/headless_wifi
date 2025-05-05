@@ -6,9 +6,8 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.net.wifi.WifiNetworkSpecifier
-import java.lang.ref.WeakReference
 
-class WifiConnector(private val context: WeakReference<Context>) {
+class WifiConnector(private val context: Context) {
     fun connectToWifi(ssid: String, password: String, isHiddenNetwork: Boolean, postCallback: WebPortal.PostCallback) {
         val specifier = WifiNetworkSpecifier.Builder()
             .setSsid(ssid)
@@ -21,7 +20,7 @@ class WifiConnector(private val context: WeakReference<Context>) {
             .setNetworkSpecifier(specifier)
             .build()
 
-        val connectivityManager = context.get()!!.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         try {
             connectivityManager.requestNetwork(request, object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {

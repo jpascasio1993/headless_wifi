@@ -67,10 +67,17 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
       Map<Permission, PermissionStatus> statuses =
-          await [Permission.location, Permission.nearbyWifiDevices].request();
+          await [
+            Permission.location,
+            Permission.nearbyWifiDevices,
+            Permission.ignoreBatteryOptimizations,
+            Permission.notification,
+          ].request();
 
       if (statuses[Permission.location]!.isGranted &&
-          statuses[Permission.nearbyWifiDevices]!.isGranted) {
+          statuses[Permission.nearbyWifiDevices]!.isGranted &&
+          statuses[Permission.ignoreBatteryOptimizations]!.isGranted) {
+        /// Listens for connection event from native code via MethodChannel
         Headlesswifi().listenForWifiEvent((isConnected, hasInternet) {
           log('wifi event: $isConnected, $hasInternet');
           setState(() {

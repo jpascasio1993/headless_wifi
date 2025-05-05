@@ -3,13 +3,17 @@ package com.awd.plugin.headlesswifi
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlarmManager
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.service.notification.StatusBarNotification
 import androidx.annotation.RequiresPermission
 import com.awd.plugin.hotspot.HotspotManager
 import com.awd.plugin.hotspot.WebPortal
@@ -20,17 +24,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import java.lang.ref.WeakReference
+import androidx.core.content.edit
+import java.util.concurrent.atomic.AtomicBoolean
 
 class HeadlessWifiPluginService : Service(){
-    private var ssid: String? = null
-    private var password: String? = null
-
-    override fun onBind(p0: Intent?): IBinder? {
-        // Return null binder since there won't be
-        // any activity calling this service
-        return null
-    }
+    private val binder = LocalBinder()
 
     companion object {
         private const val TAG = "HEADLESS_WIFI_PLUGIN_SERVICE"
@@ -38,12 +36,13 @@ class HeadlessWifiPluginService : Service(){
         private const val SHAREDPREFERENCE_KEY = "WORKMANAGER_SHARED_PREFERENCE"
         private const val SSID_KEY = "ssid";
         private const val PASSWORD_KEY = "password"
+        private const val IS_HIDDEN_NETWORK_KEY = "isHiddenNetwork"
         private const val SERVICE_ID = 1001
         private lateinit var webPortal: WebPortal
         private lateinit var hotspotManager: HotspotManager
         private lateinit var wifiConnector: WifiConnector
-        private lateinit var hotspotCallback: HotspotManager.HotspotCallback
-        private lateinit var backgroundChannel: MethodChannel
+        private var hotspotCallback: HotspotManager.HotspotCallback? = null
+        private var backgroundChannel: MethodChannel? = null
 
         fun startService(context: Context) {
 
@@ -84,7 +83,7 @@ class HeadlessWifiPluginService : Service(){
         }
 
         @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES])
-        private fun startHotspot() {
+        private fun startHotspot(context: Context) {
             hotspotManager.startHotspot(object: HotspotManager.HotspotCallback {
                 override fun onStarted(ssid: String, password: String) {
                     println("$TAG: Hotspot started with SSID: $ssid and Password: $password")
@@ -94,30 +93,114 @@ class HeadlessWifiPluginService : Service(){
                        println("webPortal failed to start")
                        e.printStackTrace()
                    }
-                    hotspotCallback.onStarted(ssid, password)
+                    hotspotCallback?.onStarted(ssid, password)
+                    connectToPreviouslyConnectedWifi(context)
+                    notify(context, "SSID: $ssid, Password: $password\nportal: ${hotspotManager.getHotspotLocalIp()}")
                 }
             })
         }
 
-        fun setBackgroundChannel(channel: MethodChannel) {
+        fun saveCredentialsOfConnectedWifi(context: Context, ssid: String, password: String, isHiddenNetwork: Boolean) {
+            val sharedPreferences = context.getSharedPreferences(SHAREDPREFERENCE_KEY, Context.MODE_PRIVATE)
+            sharedPreferences.edit() {
+                putString(SSID_KEY, ssid)
+                putString(PASSWORD_KEY, password)
+                putBoolean(IS_HIDDEN_NETWORK_KEY, isHiddenNetwork)
+            }
+        }
+
+        fun connectToPreviouslyConnectedWifi(context: Context) {
+            val sharedPreferences = context.getSharedPreferences(SHAREDPREFERENCE_KEY, Context.MODE_PRIVATE)
+            val ssid = sharedPreferences.getString(SSID_KEY, null)
+            val password = sharedPreferences.getString(PASSWORD_KEY, null)
+            val isHiddenNetwork = sharedPreferences.getBoolean(IS_HIDDEN_NETWORK_KEY, false)
+
+            if (ssid != null && password != null) {
+                wifiConnector.connectToWifi(ssid, password, isHiddenNetwork, object: WebPortal.PostCallback {
+                    override fun onComplete(connected: Boolean, hasInternet: Boolean) {
+                        println("Connected to previously connected wifi: $connected")
+                        publishStatusToDart(connected, hasInternet)
+                    }
+                })
+            }
+        }
+
+
+        fun notify(context: Context, message: String?) {
+
+            var isForegroundNotificationVisible = false
+            val notificationManager = context.getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            val notifications = notificationManager.activeNotifications
+            isForegroundNotificationVisible = notifications.any {
+                it.id == SERVICE_ID
+            }
+
+            if(isForegroundNotificationVisible) {
+                notificationManager.notify(SERVICE_ID, ServiceNotification.createNotification(context, message))
+                return
+            }
+        }
+
+        fun publishStatusToDart(connected: Boolean, hasInternet: Boolean) {
+            CoroutineScope(Dispatchers.Main + SupervisorJob()).launch {
+                backgroundChannel?.invokeMethod("headless_wifi.connectToWifi", arrayOf(connected, hasInternet), object : MethodChannel.Result {
+                    override fun success(result: Any?) {
+                        println("invokeMethod success: $result")
+                    }
+
+                    override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) {
+                        println("invokeMethod error: $errorMessage")
+                    }
+
+                    override fun notImplemented() {
+                        println("invokeMethod notImplemented")
+                    }
+                })
+            }
+        }
+
+        fun setBackgroundChannel(channel: MethodChannel?) {
             backgroundChannel = channel
         }
 
         val hostname: String? get() = webPortal.hostname
 
         val ip: String? get() = hotspotManager.getHotspotLocalIp()
+
     }
+
+    override fun onBind(p0: Intent?): IBinder? {
+        return binder
+    }
+
+    inner class LocalBinder: Binder() {
+        fun getService(): HeadlessWifiPluginService {
+            return this@HeadlessWifiPluginService
+        }
+    }
+
+
+
 
 
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.NEARBY_WIFI_DEVICES])
     @SuppressLint("ForegroundServiceType")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         println("$TAG: onStartCommand()")
-        startForeground(
-            SERVICE_ID,
-            ServiceNotification.createNotification(WeakReference<Context>(this))
-        )
-        startHotspot()
+
+        if (Build.VERSION.SDK_INT >= 34) {
+            startForeground(
+                SERVICE_ID,
+                ServiceNotification.createNotification(this, null),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            )
+        }else {
+            startForeground(
+                SERVICE_ID,
+                ServiceNotification.createNotification(this, null),
+            )
+        }
+        startHotspot(this)
         return START_STICKY
     }
 
@@ -125,14 +208,20 @@ class HeadlessWifiPluginService : Service(){
         releaseWakeLock()
         stopForegroundService()
         releaseWakeLock()
+        try {
+            webPortal.stop()
+            hotspotManager.stopHotspot()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         super.onTaskRemoved(rootIntent)
         startService(applicationContext)
     }
 
     override fun onCreate() {
         super.onCreate()
-        hotspotManager = HotspotManager(WeakReference(this))
-        wifiConnector = WifiConnector(WeakReference(this))
+        hotspotManager = HotspotManager(this)
+        wifiConnector = WifiConnector(this)
 
         webPortal = WebPortal(
             object : WebPortal.WebPortListener {
@@ -144,21 +233,8 @@ class HeadlessWifiPluginService : Service(){
                             hasInternet: Boolean
                         ) {
                             callback.onComplete(connected, hasInternet)
-                            CoroutineScope(Dispatchers.Main + SupervisorJob()).launch {
-                                    backgroundChannel.invokeMethod("headless_wifi.connectToWifi", arrayOf(connected, hasInternet), object : MethodChannel.Result {
-                                        override fun success(result: Any?) {
-                                            println("invokeMethod success: $result")
-                                        }
-
-                                        override fun error(errorCode: String, errorMessage: String?, errorDetails: Any?) {
-                                            println("invokeMethod error: $errorMessage")
-                                        }
-
-                                        override fun notImplemented() {
-                                            println("invokeMethod notImplemented")
-                                        }
-                                    })
-                                }
+                            saveCredentialsOfConnectedWifi(this@HeadlessWifiPluginService, ssid, password, isHiddenNetwork)
+                            publishStatusToDart(connected, hasInternet)
                         }
 
                     })

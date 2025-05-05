@@ -4,6 +4,7 @@ import android.content.Context
 import com.awd.plugin.hotspot.HotspotManager
 
 class HeadlessWifiPluginDelegate(private val context: Context) {
+
     fun startHeadlessWifi(callback: HotspotManager.HotspotCallback) {
         HeadlessWifiPluginService.setHotspotCallback(callback)
         HeadlessWifiPluginService.startService(context)

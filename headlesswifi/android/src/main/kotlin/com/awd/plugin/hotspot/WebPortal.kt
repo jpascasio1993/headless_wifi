@@ -7,12 +7,26 @@ import kotlinx.coroutines.runBlocking
 class WebPortal(
     private val listener: WebPortListener
 ): NanoHTTPD(8080) {
+
+
     interface WebPortListener {
         fun onCredentialsSubmit(ssid: String, password: String, isHiddenNetwork: Boolean, postCallback: PostCallback)
     }
 
     interface PostCallback {
         fun onComplete(connected: Boolean, hasInternet: Boolean)
+    }
+
+    override fun start() {
+        if(isAlive) {
+            println("WebPortal already started")
+            return
+        }
+        super.start()
+    }
+
+    override fun stop() {
+        super.stop()
     }
     
     override fun serve(session: IHTTPSession?): Response? {

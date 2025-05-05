@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'headlesswifi_platform_interface.dart';
 
 class Headlesswifi {

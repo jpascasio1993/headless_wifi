@@ -8,7 +8,6 @@ import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
-import java.lang.ref.WeakReference
 
 class ServiceNotification {
 
@@ -16,27 +15,25 @@ class ServiceNotification {
         private const val CHANNEL_ID = "headless_wifi_channel_1001"
         private const val CHANNEL_NAME = "headless_wifi_channel"
 
-        fun createNotification(context: WeakReference<Context>): Notification {
+        fun createNotification(context: Context, contextText: String?): Notification {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 createNotificationChannel(context)
             }
 
-            val packageName = context.get()!!.packageName
-            val notificationIntent = context.get()!!.packageManager
+            val packageName = context.packageName
+            val notificationIntent = context.packageManager
                 .getLaunchIntentForPackage(packageName)
-            val pendingIntent = PendingIntent.getActivity(context.get()!!, 1,
+            val pendingIntent = PendingIntent.getActivity(context, 1,
             notificationIntent, PendingIntent.FLAG_IMMUTABLE)
 
-            return setupNotification(context, pendingIntent)
+            return setupNotification(context, pendingIntent, contextText)
         }
-
-        private fun setupNotification(context: WeakReference<Context>,  notificationIntent: PendingIntent): Notification  {
-            // Setup notification channel and notification builder
-            // This is where you would create the notification
-            val notification = NotificationCompat.Builder(context.get()!!, CHANNEL_ID)
-//                .setSmallIcon(R.mipmap.ic_launcher)
-                .setContentTitle("SMS Scheduler")
-                .setContentText("SMS Scheduler has started")
+        
+        private fun setupNotification(context: Context, notificationIntent: PendingIntent, contextText: String?): Notification  {
+            val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setContentTitle("Headless Wifi")
+                .setContentText(contextText ?: "Headless Wifi has started")
                 .setOngoing(true)
                 .setContentIntent(notificationIntent)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -46,13 +43,13 @@ class ServiceNotification {
         }
 
         @RequiresApi(Build.VERSION_CODES.O)
-        private fun createNotificationChannel(context: WeakReference<Context>) {
+        private fun createNotificationChannel(context: Context) {
            val channel = NotificationChannel(CHANNEL_ID, CHANNEL_NAME, NotificationManager.IMPORTANCE_HIGH)
             channel.description = "Headless Wifi Service"
             channel.enableLights(true)
             channel.enableVibration(true)
             channel.setSound(null, null)
-            val notificationManager = context.get()!!.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
         }
     }
