@@ -54,4 +54,4 @@ After connecting to the hotspot, the tester must open the web portal in a browse
 If the app is swiped away, the service restarts automatically, reconnects to the last known Wi-Fi network, and continues running in the background. It also updates the foreground notification with the current hotspot’s SSID and password. Since the notification text may be truncated, the user should tap the notification to reopen the app and view the full instructions.
 
 **Appreciation**
-Thanks to online resources such as StackOverflow, GitHub Issues, and AI -- ChatGPT, ClaudeAI. Having my queries answered blazing fast is the greatest feeling of development.
+Thanks to online resources such as StackOverflow, GitHub Issues, and AI -- ChatGPT, ClaudeAI. Having my queries answered blazing fast is one of the greatest feeling of development.
